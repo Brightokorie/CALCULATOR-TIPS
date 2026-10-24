@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tip Calculator</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .calculator {
+      background: white;
+      width: 100%;
+      max-width: 420px;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      text-align: center;
+      color: #172554;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #64748b;
+      margin-bottom: 25px;
+    }
+
+    label {
+      display: block;
+      margin: 18px 0 8px;
+      font-weight: bold;
+      color: #334155;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    input:focus {
+      outline: 2px solid #93c5fd;
+      border-color: #2563eb;
+    }
+
+    .tip-buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    button {
+      padding: 12px 8px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    .tip-btn {
+      background: #e2e8f0;
+      color: #334155;
+    }
+
+    .tip-btn.active {
+      background: #2563eb;
+      color: white;
+    }
+
+    .results {
+      margin-top: 25px;
+      padding: 18px;
+      background: #eff6ff;
+      border-radius: 10px;
+    }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 16px;
+      color: #334155;
+    }
+
+    .result-row strong {
+      color: #2563eb;
+      overflow-wrap: anywhere;
+    }
+
+    .total {
+      border-top: 1px solid #bfdbfe;
+      padding-top: 16px;
+      margin-bottom: 0;
+    }
+
+    .total strong {
+      color: #15803d;
+      font-size: 20px;
+    }
+
+    #reset-btn {
+      width: 100%;
+      margin-top: 20px;
+      background: #172554;
+      color: white;
+    }
+
+    #reset-btn:hover {
+      background: #1e40af;
+    }
+
+    #error {
+      color: #dc2626;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 380px) {
+      .calculator {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="calculator">
+    <h1>Tip Calculator</h1>
+    <p class="subtitle">Calculate your tip in seconds.</p>
+
+    <label for="bill">Bill Amount (₦)</label>
+    <input
+      type="number"
+      id="bill"
+      min="0"
+      step="0.01"
+      placeholder="Enter bill amount"
+    >
+
+    <label>Select Tip Percentage</label>
+    <div class="tip-buttons">
+      <button type="button" class="tip-btn" data-tip="5">5%</button>
+      <button type="button" class="tip-btn active" data-tip="10">10%</button>
+      <button type="button" class="tip-btn" data-tip="15">15%</button>
+      <button type="button" class="tip-btn" data-tip="20">20%</button>
+    </div>
+
+    <label for="custom-tip">Custom Tip (%)</label>
+    <input
+      type="number"
+      id="custom-tip"
+      min="0"
+      max="100"
+      step="0.1"
+      placeholder="Or enter a custom percentage"
+    >
+
+    <p id="error" role="alert"></p>
+
+    <section class="results" aria-live="polite">
+      <div class="result-row">
+        <span>Tip Amount</span>
+        <strong id="tip-amount">₦0.00</strong>
+      </div>
+
+      <div class="result-row total">
+        <span>Total Bill</span>
+        <strong id="total-amount">₦0.00</strong>
+      </div>
+    </section>
+
+    <button type="button" id="reset-btn">Reset Calculator</button>
+  </main>
+
+  <script>
+    // 1. Select HTML elements
+    const billInput = document.getElementById("bill");
+    const customTipInput = document.getElementById("custom-tip");
+    const tipAmountDisplay = document.getElementById("tip-amount");
+    const totalAmountDisplay = document.getElementById("total-amount");
+    const tipButtons = document.querySelectorAll(".tip-btn");
+    const resetButton = document.getElementById("reset-btn");
+    const errorDisplay = document.getElementById("error");
+
+    // 2. Default tip percentage
+    let selectedTip = 10;
+
+    // 3. Format money in Nigerian naira
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat("en-NG", {
+        style: "currency",
+        currency: "NGN",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(amount);
+    }
+
+    // 4. Calculate the tip and total bill
+    function calculateTip() {
+      const bill = Number(billInput.value);
+      const customTip = customTipInput.value;
+
+      const tipPercentage = customTip !== ""
+        ? Number(customTip)
+        : selectedTip;
+
+      // Validate inputs
+      if (
+        billInput.value.trim() === "" ||
+        !Number.isFinite(bill) ||
+        bill < 0 ||
+        !Number.isFinite(tipPercentage) ||
+        tipPercentage < 0 ||
+        tipPercentage > 100
+      ) {
+        tipAmountDisplay.textContent = formatCurrency(0);
+        totalAmountDisplay.textContent = formatCurrency(0);
+
+        errorDisplay.textContent =
+          customTip !== "" &&
+          (tipPercentage < 0 || tipPercentage > 100)
+            ? "Tip percentage must be between 0 and 100."
+            : bill < 0
+              ? "Bill amount cannot be negative."
+              : "";
+
+        return;
+      }
+
+      errorDisplay.textContent = "";
+
+      const tipAmount = bill * tipPercentage / 100;
+      const totalAmount = bill + tipAmount;
+
+      // 5. Display results automatically
+      tipAmountDisplay.textContent = formatCurrency(tipAmount);
+      totalAmountDisplay.textContent = formatCurrency(totalAmount);
+    }
+
+    // 6. Listen for clicks on preset tip buttons
+    tipButtons.forEach(function(button) {
+      button.addEventListener("click", function() {
+        selectedTip = Number(button.dataset.tip);
+
+        // Clear custom tip
+        customTipInput.value = "";
+
+        // Highlight selected button
+        tipButtons.forEach(function(btn) {
+          btn.classList.remove("active");
+        });
+
+        button.classList.add("active");
+
+        calculateTip();
+      });
+    });
+
+    // 7. Listen for input changes
+    billInput.addEventListener("input", calculateTip);
+
+    customTipInput.addEventListener("input", function() {
+      tipButtons.forEach(function(button) {
+        button.classList.remove("active");
+      });
+
+      calculateTip();
+    });
+
+    // 8. Reset calculator
+    resetButton.addEventListener("click", function() {
+      billInput.value = "";
+      customTipInput.value = "";
+      selectedTip = 10;
+
+      tipButtons.forEach(function(button) {
+        button.classList.toggle(
+          "active",
+          Number(button.dataset.tip) === 10
+        );
+      });
+
+      errorDisplay.textContent = "";
+      calculateTip();
+    });
+
+    // 9. Initialize calculator
+    calculateTip();
+  </script>
+
+</body>
+</html>
