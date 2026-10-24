@@ -1,0 +1,51 @@
+name: Validate application
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate calculator HTML and JavaScript
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const vm = require("node:vm");
+
+          const html = fs.readFileSync("calcu.html", "utf8");
+          const scriptMatch = html.match(/<script\b[^>]*>([\s\S]*?)<\/script>/i);
+
+          if (!scriptMatch) {
+            throw new Error("No inline application script found in calcu.html");
+          }
+
+          new vm.Script(scriptMatch[1], { filename: "calcu.html" });
+
+          const htmlIds = new Set(
+            [...html.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1])
+          );
+          const referencedIds = [
+            ...scriptMatch[1].matchAll(/getElementById\(["']([^"']+)["']\)/g),
+          ].map((match) => match[1]);
+          const missingIds = referencedIds.filter((id) => !htmlIds.has(id));
+
+          if (missingIds.length > 0) {
+            throw new Error(`Application references missing HTML IDs: ${missingIds.join(", ")}`);
+          }
+
+          console.log("Calculator HTML and inline JavaScript validation passed.");
+          NODE
